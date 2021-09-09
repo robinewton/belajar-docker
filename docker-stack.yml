@@ -1,0 +1,119 @@
+version: "3.3"
+services:
+  web:
+    image: robiyanto/web-custom:uji1
+    depends_on:
+      - mysql
+    volumes:
+      - ./myweb-app/file-web:/app
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - proxy_net
+      - int_net
+  pma:
+    image: robiyanto/pma-custom:uji1
+    depends_on:
+      - mysql
+    environment:
+      - PMA_HOST=mysql
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - proxy_net
+      - int_net  
+  mysql:
+    image: robiyanto/mysql-custom:uji1
+    environment:
+      MYSQL_DATABASE_FILE: /run/secrets/namedb
+      MYSQL_USER_FILE: /run/secrets/userdb
+      MYSQL_PASSWORD_FILE: /run/secrets/passdb
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/rootdb
+    secrets:
+      - namedb
+      - passdb
+      - rootdb
+      - userdb
+    volumes: 
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: "/etc/init.d/mysql status"
+      interval: 1s
+      retries: 120
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - int_net
+  proxy:
+    image: robiyanto/proxy-custom:uji1
+    depends_on:
+      - web
+      - pma
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    deploy:
+      mode: replicated
+      placement:
+        constraints: [node.platform.os == linux]
+      replicas: 3
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - ext_net
+      - proxy_net
+
+volumes:
+  mysql-data:
+
+secrets:
+  namedb:
+    file: ./namedb.txt
+  rootdb:
+    file: ./rootdb.txt  
+  userdb:
+    file: ./userdb.txt
+  passdb:
+    file: ./passdb.txt
+
+networks:
+  int_net:
+    driver: overlay
+    attachable: true
+  proxy_net:
+    driver: overlay
+    attachable: true
+  ext_net:
+    driver: overlay
+    attachable: true

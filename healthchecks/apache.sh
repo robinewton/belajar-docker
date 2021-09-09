@@ -1,0 +1,1 @@
+curl --fail -s http://localhost:80/ || exit 1

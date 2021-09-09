@@ -1,0 +1,77 @@
+version: "3.1"
+services:
+  
+  proxy:
+    # build: ./nginx
+    image: robiyanto/proxy-custom:uji1
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro  
+    networks:
+      - ext_net
+      - proxy_net
+
+  web:
+    # build: ./myweb-app
+    image: robiyanto/web-custom:uji1
+    volumes:
+     - ./myweb-app/file-web:/app
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: /healthchecks/apache.sh
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - proxy_net
+      - int_net
+
+  pma:
+    build: ./pma
+    image: robiyanto/pma-custom:uji1
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=mysql
+    networks:
+      - proxy_net
+      - int_net
+    
+  mysql:
+    # build: ./db
+    image: robiyanto/mysql-custom:uji1
+    restart: always
+    secrets:
+      - userdb
+      - passdb
+      - rootdb
+      - namedb
+    environment:
+      MYSQL_DATABASE_FILE: /run/secrets/namedb
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/rootdb
+      MYSQL_USER_FILE: /run/secrets/userdb
+      MYSQL_PASSWORD_FILE: /run/secrets/passdb
+    networks:
+      - int_net
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+secrets:
+  rootdb:
+    file: ./rootdb.txt
+  namedb:
+    file: ./namedb.txt
+  userdb:
+    file: ./userdb.txt
+  passdb:
+    file: ./passdb.txt
+    
+volumes:
+  mysql_data:
+
+networks:
+  ext_net:
+  proxy_net:
+  int_net:
