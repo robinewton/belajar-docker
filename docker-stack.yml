@@ -4,8 +4,8 @@ services:
     image: robiyanto/web-custom:uji1
     depends_on:
       - mysql
-    volumes:
-      - ./myweb-app/file-web:/app
+    # volumes:
+      # - ./myweb-app/file-web:/app
     deploy:
       replicas: 1
       update_config:
